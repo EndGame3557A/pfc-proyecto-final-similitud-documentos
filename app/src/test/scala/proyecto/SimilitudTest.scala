@@ -97,4 +97,170 @@ class SimilitudTest extends AnyFunSuite {
     assert(detectarDirecto(c1, 3, 0.2, 5) == detectarConIndice(c1, 3, 0.2, 5))
     assert(detectarDirecto(c2, 3, 0.3, 5) == detectarConIndice(c2, 3, 0.3, 5))
   }
+
+
+
+  // _________________________ TEST ADICIONALES ___________________________
+
+  // normalizar: 5 casos propios
+
+  test("normalizar propio 1: la puntuación se vuelve separador") {
+    assert(normalizar("Hola, mundo!") == Vector("hola", "mundo"))
+  }
+
+  test("normalizar propio 2: espacios repetidos, tabs y saltos no dejan vacías") {
+    assert(normalizar("  uno   dos\tTres\ncuatro ") ==
+      Vector("uno", "dos", "tres", "cuatro"))
+  }
+
+  test("normalizar propio 3: cadena vacía o solo símbolos da vector vacío") {
+    assert(normalizar("") == Vector())
+    assert(normalizar("¡¿...?! --- ;;") == Vector())
+  }
+
+  test("normalizar propio 4: los dígitos se conservan como parte de la palabra") {
+    assert(normalizar("Ley 100 de 1993") == Vector("ley", "100", "de", "1993"))
+  }
+
+  test("normalizar propio 5: acentos y ñ se conservan; guion y apóstrofe separan") {
+    assert(normalizar("Canción, MAÑANA") == Vector("canción", "mañana"))
+    assert(normalizar("bien-estar don't") == Vector("bien", "estar", "don", "t"))
+  }
+
+  // fragmentos: 5 casos
+
+  test("fragmentos propio 1: con k = 1 cada palabra es un fragmento") {
+    assert(fragmentos(Vector("a", "b", "c"), 1) ==
+      Vector(Vector("a"), Vector("b"), Vector("c")))
+  }
+
+  test("fragmentos propio 2: con k = t hay un único fragmento, el documento") {
+    assert(fragmentos(Vector("a", "b", "c"), 3) == Vector(Vector("a", "b", "c")))
+  }
+
+  test("fragmentos propio 3: con k mayor que t no hay fragmentos") {
+    assert(fragmentos(Vector("a", "b"), 3) == Vector())
+  }
+
+  test("fragmentos propio 4: un documento vacío no tiene fragmentos") {
+    assert(fragmentos(Vector(), 2) == Vector())
+  }
+
+  test("fragmentos propio 5: los repetidos se conservan y hay t - k + 1") {
+    val fs = fragmentos(Vector("x", "x", "x", "x"), 2)
+    assert(fs.length == 3)
+    assert(fs.forall(_ == Vector("x", "x")))
+  }
+
+  // huella: 5 casos
+
+  test("huella propio 1: un fragmento repetido cuenta una sola vez") {
+    val h = huella(("r", Vector("a", "a", "a", "a")), 2)
+    assert(h.size == 1)
+    assert(h == Set(Vector("a", "a")))
+  }
+
+  test("huella propio 2: con menos de k palabras la huella es vacía") {
+    assert(huella(("corto", Vector("a", "b")), 3) == Set())
+  }
+
+  test("huella propio 3: el contenido exacto de un documento de tres palabras") {
+    assert(huella(("y", Vector("a", "b", "c")), 2) ==
+      Set(Vector("a", "b"), Vector("b", "c")))
+  }
+
+  test("huella propio 4: con k = 1 es el conjunto de palabras distintas") {
+    assert(huella(("z", Vector("a", "b", "a", "c")), 1) ==
+      Set(Vector("a"), Vector("b"), Vector("c")))
+  }
+
+  test("huella propio 5: ignora el id pero el orden de las palabras sí cuenta") {
+    val w = Vector("a", "b", "c", "d")
+    assert(huella(("uno", w), 2) == huella(("otro", w), 2))
+    assert(huella(("uno", w), 2) != huella(("uno", w.reverse), 2))
+  }
+
+  // huellas: 5 casos
+
+  test("huellas propio 1: un corpus vacío da un vector vacío") {
+    assert(huellas(Vector(), 3) == Vector())
+  }
+
+  test("huellas propio 2: la huella i corresponde al documento i") {
+    val hs = huellas(c1, 3)
+    assert(c1.indices.forall(i => hs(i) == huella(c1(i), 3)))
+  }
+
+  test("huellas propio 3: un documento corto da huella vacía sin afectar a los demás") {
+    val c: Corpus = Vector(("corto", Vector("x")), d0)
+    val hs = huellas(c, 3)
+    assert(hs(0).isEmpty)
+    assert(hs(1).size == 4)
+  }
+
+  test("huellas propio 4: el ejemplo 2 tiene 7, 7, 6 y 6 fragmentos") {
+    assert(huellas(c2, 3).map(_.size) == Vector(7, 7, 6, 6))
+  }
+
+  test("huellas propio 5: documentos con las mismas palabras tienen huellas iguales") {
+    val hs = huellas(Vector(d0, ("copia", d0._2)), 3)
+    assert(hs(0) == hs(1))
+  }
+
+  // jaccard: 5 casos
+
+  test("jaccard propio 1: huellas vacías dan cero, sin dividir por cero") {
+    val vacia: Huella = Set()
+    assert(jaccard(vacia, vacia) == 0.0)
+    assert(jaccard(vacia, huella(d0, 3)) == 0.0)
+  }
+
+  test("jaccard propio 2: huellas idénticas dan uno") {
+    assert(math.abs(jaccard(huella(d0, 3), huella(d0, 3)) - 1.0) < eps)
+  }
+
+  test("jaccard propio 3: huellas disjuntas dan cero") {
+    assert(jaccard(huella(d0, 3), huella(d2, 3)) == 0.0)
+  }
+
+  test("jaccard propio 4: es simétrica y d0 con d1 da 1/3") {
+    val a = huella(d0, 3)
+    val b = huella(d1, 3)
+    assert(math.abs(jaccard(a, b) - jaccard(b, a)) < eps)
+    assert(math.abs(jaccard(a, b) - 1.0 / 3.0) < eps)
+  }
+
+  test("jaccard propio 5: una huella contenida en otra da el cociente de tamaños") {
+    val pequena: Huella = Set(Vector("a"), Vector("b"))
+    val grande: Huella = Set(Vector("a"), Vector("b"), Vector("c"), Vector("d"))
+    assert(math.abs(jaccard(pequena, grande) - 0.5) < eps)
+  }
+
+  // parejas: 5 casos
+
+  test("parejas propio 1: con 0 o 1 documentos no hay parejas") {
+    assert(parejas(0) == Vector())
+    assert(parejas(1) == Vector())
+  }
+
+  test("parejas propio 2: con 2 documentos solo está (0, 1)") {
+    assert(parejas(2) == Vector((0, 1)))
+  }
+
+  test("parejas propio 3: el contenido exacto para n = 4") {
+    assert(parejas(4) ==
+      Vector((0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)))
+  }
+
+  test("parejas propio 4: todas cumplen i < j, están en rango y no se repiten") {
+    val ps = parejas(6)
+    assert(ps.forall(p => 0 <= p._1 && p._1 < p._2 && p._2 < 6))
+    assert(ps.distinct.length == ps.length)
+  }
+
+  test("parejas propio 5: la cantidad es n (n - 1) / 2 y salen ordenadas") {
+    assert((0 to 10).forall(n => parejas(n).length == n * (n - 1) / 2))
+    assert(parejas(7) == parejas(7).sorted)
+    assert(parejas(5).head == (0, 1) && parejas(5).last == (3, 4))
+  }
 }
