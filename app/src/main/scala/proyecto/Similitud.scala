@@ -117,31 +117,54 @@ object Similitud {
 
   /** La similitud de cada pareja que se le pase, en el mismo orden. */
   def similitudes(hs: Vector[Huella], ps: Vector[Pareja]): Vector[Medicion] =
-    ???
+    ps.map { case (i, j) => (i, j, jaccard(hs(i), hs(j))) }
   /**
    * El mapa de cada fragmento al conjunto de documentos donde aparece, con los
    * documentos identificados por su posición en el vector de huellas.
    */
-  def indiceInvertido(hs: Vector[Huella]): Indice = ???
+  def indiceInvertido(hs: Vector[Huella]): Indice = {
+    val pares = for {
+      (h, i) <- hs.zipWithIndex
+      g <- h
+    } yield (g, i)
+    pares.groupBy(_._1).map { case (g, lista) => (g, lista.map(_._2).toSet) }
+  }
 
   /**
    * Las parejas que comparten al menos un fragmento, sin repetir y ordenadas.
    * Una misma pareja puede salir de varias entradas del índice.
    */
-  def parejasCandidatas(idx: Indice): Vector[Pareja] = ???
+  def parejasCandidatas(idx: Indice): Vector[Pareja] = {
+    val todas = for {
+      docs <- idx.values.toVector
+      a <- docs
+      b <- docs
+      if a < b
+    } yield (a, b)
+    todas.distinct.sorted
+  }
 
   /**
    * Las mediciones que alcanzan el umbral, de mayor a menor similitud y
    * truncadas a p. Los empates se rompen por posición, de modo que el
    * resultado no dependa del orden en que llegaron las mediciones.
    */
-  def ranking(ss: Vector[Medicion], umbral: Double, p: Int): Vector[Medicion] = ???
+  def ranking(ss: Vector[Medicion], umbral: Double, p: Int): Vector[Medicion] =
+    ss.filter(_._3 >= umbral)
+      .sortBy { case (i, j, s) => (-s, i, j) }
+      .take(p)
 
   /** Solución directa: compara las n (n - 1) / 2 parejas. */
   def detectarDirecto(c: Corpus, k: Int, umbral: Double,
-                      p: Int): Vector[Medicion] = ???
+                      p: Int): Vector[Medicion] = {
+    val hs = huellas(c, k)
+    ranking(similitudes(hs, parejas(hs.length)), umbral, p)
+  }
 
   /** Solución con índice: compara solo las parejas candidatas. */
   def detectarConIndice(c: Corpus, k: Int, umbral: Double,
-                        p: Int): Vector[Medicion] = ???
+                        p: Int): Vector[Medicion] = {
+    val hs = huellas(c, k)
+    ranking(similitudes(hs, parejasCandidatas(indiceInvertido(hs))), umbral, p)
+  }
 }
